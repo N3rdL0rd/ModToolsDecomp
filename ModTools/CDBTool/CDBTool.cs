@@ -1,484 +1,559 @@
-﻿// Decompiled with JetBrains decompiler
-// Type: CDBTool.CDBTool
-// Assembly: CDBTool, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
-// MVID: 42BFB734-5A26-4F73-8548-F69108A06C4F
-// Assembly location: D:\SteamLibrary\steamapps\common\Dead Cells\ModTools\CDBTool.exe
-
-using Microsoft.CSharp.RuntimeBinder;
-using ModTools;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.CSharp.RuntimeBinder;
+using ModTools;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
-#nullable disable
 namespace CDBTool
 {
-  public class CDBTool
-  {
-    public const string structureFileName = "__STRUCTURE__.json";
-    public const string propertyFileName = "__PROPS__.json";
-    public const string columnsNodeName = "__columns";
-    public const string tableIndexName = "__table_index";
-    public const string separatorGroupIDName = "__separator_group_ID";
-    public const string separatorGroupNameName = "__separator_group_Name";
-    public const string originalIndexName = "__original_Index";
-    public bool bMultiThread = true;
+	// Token: 0x02000002 RID: 2
+	public class CDBTool
+	{
+		// Token: 0x06000001 RID: 1 RVA: 0x00002050 File Offset: 0x00000250
+		public void Expand(string _sourceCDBPath, string _output)
+		{
+			DirectoryInfo directoryInfo = new DirectoryInfo(_output);
+			if (!File.Exists(_sourceCDBPath))
+			{
+				throw new FileNotFoundException("CDB file not found : " + _sourceCDBPath, _sourceCDBPath);
+			}
+			directoryInfo.Create();
+			string[] array = new string[]
+			{
+				"id",
+				"item",
+				"name",
+				"room",
+				"animId"
+			};
+			JObject jobject = (JObject)JsonConvert.DeserializeObject(File.ReadAllText(_sourceCDBPath));
+			int num = 0;
+			foreach (JToken jtoken in ((IEnumerable<JToken>)jobject["sheets"]))
+			{
+				JObject jobject2 = (JObject)jtoken;
+				string path = jobject2["name"].ToString();
+				DirectoryInfo directoryInfo2 = directoryInfo.CreateSubdirectory(path);
+				JArray value = jobject2.Value<JArray>("columns");
+				JObject jobject3 = new JObject();
+				jobject3.Add("__columns", value);
+				jobject3.Add("__table_index", num);
+				if (this.bMultiThread)
+				{
+					this.WriteContentAsync(Path.Combine(directoryInfo2.FullName, "__STRUCTURE__.json"), jobject3.ToString()).ContinueWith(delegate(Task t)
+					{
+						Error.Show(t.Exception, false);
+					}, TaskContinuationOptions.OnlyOnFaulted);
+				}
+				else
+				{
+					CDBTool.WriteContentSync(Path.Combine(directoryInfo2.FullName, "__STRUCTURE__.json"), jobject3.ToString());
+				}
+				List<Separator> list = new List<Separator>();
+				JArray jarray = jobject2.Value<JArray>("separators");
+				JArray jarray2 = null;
+				if (jarray != null)
+				{
+					JObject jobject4 = jobject2.Value<JObject>("props");
+					if (jobject4 != null)
+					{
+						jarray2 = jobject4.Value<JArray>("separatorTitles");
+					}
+				}
+				if (jarray2 != null)
+				{
+					List<int> list2 = new List<int>();
+					foreach (JToken value2 in jarray)
+					{
+						int item = (int)value2;
+						list2.Add(item);
+					}
+					List<string> list3 = new List<string>();
+					foreach (JToken value3 in jarray2)
+					{
+						string item2 = (string)value3;
+						list3.Add(item2);
+					}
+					for (int i = 0; i < list2.Count; i++)
+					{
+						list.Add(new Separator(i, list3[i], list2[i]));
+					}
+				}
+				int count = list.Count;
+				if (count > 0)
+				{
+					list.Sort((Separator a, Separator b) => a.lineIndex.CompareTo(b.lineIndex));
+				}
+				JObject jobject5 = (JObject)jobject2["props"];
+				jobject5.Remove("separatorTitles");
+				if (this.bMultiThread)
+				{
+					this.WriteContentAsync(Path.Combine(directoryInfo2.FullName, "__PROPS__.json"), jobject5.ToString()).ContinueWith(delegate(Task t)
+					{
+						Error.Show(t.Exception, false);
+					}, TaskContinuationOptions.OnlyOnFaulted);
+				}
+				else
+				{
+					CDBTool.WriteContentSync(Path.Combine(directoryInfo2.FullName, "__PROPS__.json"), jobject5.ToString());
+				}
+				int num2 = 0;
+				string text = "";
+				JArray jarray3 = jobject2.Value<JArray>("lines");
+				int num3 = (int)Math.Floor(Math.Log10((double)jarray3.Count)) + 1;
+				string format = "D" + num3;
+				int num4 = -1;
+				foreach (JToken jtoken2 in jarray3)
+				{
+					JObject jobject6 = (JObject)jtoken2;
+					while (count > 0 && num4 + 1 < count && num2 >= list[num4 + 1].lineIndex)
+					{
+						num4++;
+					}
+					jobject6.Add("__separator_group_ID", num4);
+					string text2 = "";
+					if (num4 >= 0 && num4 < count)
+					{
+						text2 = list[num4].name;
+					}
+					jobject6.Add("__separator_group_Name", text2);
+					jobject6.Add("__original_Index", num2);
+					string text3 = null;
+					if (text == "")
+					{
+						for (int j = 0; j < array.Length; j++)
+						{
+							if (text3 != null)
+							{
+								break;
+							}
+							try
+							{
+								text3 = jobject6[array[j]].ToString();
+								text = array[j];
+							}
+							catch (Exception)
+							{
+							}
+						}
+					}
+					else
+					{
+						try
+						{
+							text3 = jobject6[text].ToString();
+						}
+						catch (Exception)
+						{
+						}
+					}
+					string str = num2.ToString(format);
+					if (string.IsNullOrEmpty(text3))
+					{
+						text3 = str + "-UnnamedLine";
+					}
+					string content = jobject6.ToString();
+					string text4 = Path.Combine(directoryInfo2.FullName, text2);
+					Directory.CreateDirectory(text4);
+					if (this.bMultiThread)
+					{
+						this.WriteContentAsync(Path.Combine(text4, str + "---" + text3 + ".json"), content).ContinueWith(delegate(Task t)
+						{
+							Error.Show(t.Exception, false);
+						}, TaskContinuationOptions.OnlyOnFaulted);
+					}
+					else
+					{
+						CDBTool.WriteContentSync(Path.Combine(directoryInfo2.FullName, text2, str + "---" + text3 + ".json"), content);
+					}
+					num2++;
+				}
+				num++;
+			}
+		}
 
-    public void Expand(string _sourceCDBPath, string _output)
-    {
-      DirectoryInfo directoryInfo = new DirectoryInfo(_output);
-      if (!File.Exists(_sourceCDBPath))
-        throw new FileNotFoundException("CDB file not found : " + _sourceCDBPath, _sourceCDBPath);
-      directoryInfo.Create();
-      string[] strArray = new string[5]
-      {
-        "id",
-        "item",
-        "name",
-        "room",
-        "animId"
-      };
-      JObject jobject1 = (JObject) JsonConvert.DeserializeObject(File.ReadAllText(_sourceCDBPath));
-      int num1 = 0;
-      foreach (JObject jobject2 in (IEnumerable<JToken>) jobject1["sheets"])
-      {
-        string path = jobject2["name"].ToString();
-        DirectoryInfo subdirectory = directoryInfo.CreateSubdirectory(path);
-        JArray jarray1 = jobject2.Value<JArray>((object) "columns");
-        JObject jobject3 = new JObject();
-        jobject3.Add("__columns", (JToken) jarray1);
-        jobject3.Add("__table_index", (JToken) num1);
-        if (this.bMultiThread)
-          this.WriteContentAsync(Path.Combine(subdirectory.FullName, "__STRUCTURE__.json"), jobject3.ToString()).ContinueWith((Action<Task>) (t => Error.Show((Exception) t.Exception, false)), TaskContinuationOptions.OnlyOnFaulted);
-        else
-          CDBTool.CDBTool.WriteContentSync(Path.Combine(subdirectory.FullName, "__STRUCTURE__.json"), jobject3.ToString());
-        List<Separator> separatorList = new List<Separator>();
-        JArray jarray2 = jobject2.Value<JArray>((object) "separators");
-        JArray jarray3 = (JArray) null;
-        if (jarray2 != null)
-        {
-          JObject jobject4 = jobject2.Value<JObject>((object) "props");
-          if (jobject4 != null)
-            jarray3 = jobject4.Value<JArray>((object) "separatorTitles");
-        }
-        if (jarray3 != null)
-        {
-          List<int> intList = new List<int>();
-          foreach (JToken jtoken in jarray2)
-          {
-            int num2 = (int) jtoken;
-            intList.Add(num2);
-          }
-          List<string> stringList = new List<string>();
-          foreach (JToken jtoken in jarray3)
-          {
-            string str = (string) jtoken;
-            stringList.Add(str);
-          }
-          for (int index = 0; index < intList.Count; ++index)
-            separatorList.Add(new Separator(index, stringList[index], intList[index]));
-        }
-        int count = separatorList.Count;
-        if (count > 0)
-          separatorList.Sort((Comparison<Separator>) ((a, b) => a.lineIndex.CompareTo(b.lineIndex)));
-        JObject jobject5 = (JObject) jobject2["props"];
-        jobject5.Remove("separatorTitles");
-        if (this.bMultiThread)
-          this.WriteContentAsync(Path.Combine(subdirectory.FullName, "__PROPS__.json"), jobject5.ToString()).ContinueWith((Action<Task>) (t => Error.Show((Exception) t.Exception, false)), TaskContinuationOptions.OnlyOnFaulted);
-        else
-          CDBTool.CDBTool.WriteContentSync(Path.Combine(subdirectory.FullName, "__PROPS__.json"), jobject5.ToString());
-        int num3 = 0;
-        string propertyName = "";
-        JArray jarray4 = jobject2.Value<JArray>((object) "lines");
-        string format = "D" + (object) ((int) Math.Floor(Math.Log10((double) jarray4.Count)) + 1);
-        int index1 = -1;
-        foreach (JObject jobject6 in jarray4)
-        {
-          while (count > 0 && index1 + 1 < count && num3 >= separatorList[index1 + 1].lineIndex)
-            ++index1;
-          jobject6.Add("__separator_group_ID", (JToken) index1);
-          string path2 = "";
-          if (index1 >= 0 && index1 < count)
-            path2 = separatorList[index1].name;
-          jobject6.Add("__separator_group_Name", (JToken) path2);
-          jobject6.Add("__original_Index", (JToken) num3);
-          string str1 = (string) null;
-          if (propertyName == "")
-          {
-            for (int index2 = 0; index2 < strArray.Length; ++index2)
-            {
-              if (str1 == null)
-              {
-                try
-                {
-                  str1 = jobject6[strArray[index2]].ToString();
-                  propertyName = strArray[index2];
-                }
-                catch (Exception ex)
-                {
-                }
-              }
-              else
-                break;
-            }
-          }
-          else
-          {
-            try
-            {
-              str1 = jobject6[propertyName].ToString();
-            }
-            catch (Exception ex)
-            {
-            }
-          }
-          string str2 = num3.ToString(format);
-          if (string.IsNullOrEmpty(str1))
-            str1 = str2 + "-UnnamedLine";
-          string _content = jobject6.ToString();
-          string str3 = Path.Combine(subdirectory.FullName, path2);
-          Directory.CreateDirectory(str3);
-          if (this.bMultiThread)
-            this.WriteContentAsync(Path.Combine(str3, str2 + "---" + str1 + ".json"), _content).ContinueWith((Action<Task>) (t => Error.Show((Exception) t.Exception, false)), TaskContinuationOptions.OnlyOnFaulted);
-          else
-            CDBTool.CDBTool.WriteContentSync(Path.Combine(subdirectory.FullName, path2, str2 + "---" + str1 + ".json"), _content);
-          ++num3;
-        }
-        ++num1;
-      }
-    }
+		// Token: 0x06000002 RID: 2 RVA: 0x00002634 File Offset: 0x00000834
+		public void Collapse(string _rootInput, string _destCDBPath)
+		{
+			DirectoryInfo directoryInfo = new DirectoryInfo(_rootInput);
+			if (!directoryInfo.Exists)
+			{
+				throw new DirectoryNotFoundException("Input directory not found : " + _rootInput);
+			}
+			JObject jobject = new JObject();
+			JArray jarray = new JArray();
+			jobject.Add("sheets", jarray);
+			List<KeyValuePair<int, JObject>> list = new List<KeyValuePair<int, JObject>>();
+			foreach (DirectoryInfo directoryInfo2 in directoryInfo.GetDirectories())
+			{
+				JObject jobject2 = new JObject();
+				JProperty content = new JProperty("name", directoryInfo2.Name);
+				JArray jarray2 = new JArray();
+				JObject jobject3 = null;
+				JArray jarray3 = new JArray();
+				JProperty content2 = new JProperty("lines", jarray2);
+				JProperty content3 = new JProperty("separators", jarray3);
+				jobject2.Add(content);
+				List<Separator> list2 = new List<Separator>();
+				foreach (FileInfo fileInfo in directoryInfo2.GetFiles("*.json", SearchOption.AllDirectories))
+				{
+					if (fileInfo.Name != "__STRUCTURE__.json" && fileInfo.Name != "__PROPS__.json")
+					{
+						object arg = JsonConvert.DeserializeObject(File.ReadAllText(fileInfo.FullName));
+						if (CDBTool.<>o__9.<>p__1 == null)
+						{
+							CDBTool.<>o__9.<>p__1 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.ConvertExplicit, typeof(JObject), typeof(CDBTool)));
+						}
+						Func<CallSite, object, JObject> target = CDBTool.<>o__9.<>p__1.Target;
+						CallSite <>p__ = CDBTool.<>o__9.<>p__1;
+						if (CDBTool.<>o__9.<>p__0 == null)
+						{
+							CDBTool.<>o__9.<>p__0 = CallSite<Func<CallSite, object, object>>.Create(Binder.InvokeMember(CSharpBinderFlags.None, "DeepClone", null, typeof(CDBTool), new CSharpArgumentInfo[]
+							{
+								CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, null)
+							}));
+						}
+						JObject jobject4 = target(<>p__, CDBTool.<>o__9.<>p__0.Target(CDBTool.<>o__9.<>p__0, arg));
+						int num = jobject4.Value<int>("__separator_group_ID");
+						string name = jobject4.Value<string>("__separator_group_Name");
+						Separator separator = new Separator(num, name, 0);
+						if (num != -1 && list2.Find((Separator s) => s.name == name) == null)
+						{
+							bool flag = false;
+							do
+							{
+								if (list2.Count != 0)
+								{
+									int num2 = 0;
+									while (num2 < list2.Count && list2[num2].id != separator.id)
+									{
+										num2++;
+									}
+									flag = (num2 < list2.Count);
+									if (flag)
+									{
+										foreach (Separator separator2 in list2)
+										{
+											if (separator2.id > separator.id)
+											{
+												separator2.id++;
+											}
+										}
+										separator.id++;
+									}
+								}
+							}
+							while (flag);
+							list2.Add(separator);
+						}
+					}
+				}
+				List<KeyValuePair<long, int>> list3 = new List<KeyValuePair<long, int>>();
+				List<JObject> list4 = new List<JObject>();
+				foreach (FileInfo fileInfo2 in directoryInfo2.GetFiles("*.json", SearchOption.AllDirectories))
+				{
+					object arg2 = JsonConvert.DeserializeObject(File.ReadAllText(fileInfo2.FullName));
+					if (fileInfo2.Name == "__STRUCTURE__.json")
+					{
+						if (CDBTool.<>o__9.<>p__2 == null)
+						{
+							CDBTool.<>o__9.<>p__2 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.None, typeof(JObject), typeof(CDBTool)));
+						}
+						JObject jobject5 = CDBTool.<>o__9.<>p__2.Target(CDBTool.<>o__9.<>p__2, arg2);
+						jobject2.Add(new JProperty("columns", jobject5.Value<JArray>("__columns").DeepClone()));
+						list.Add(new KeyValuePair<int, JObject>(jobject5.Value<int>("__table_index"), jobject2));
+					}
+					else if (fileInfo2.Name == "__PROPS__.json")
+					{
+						if (CDBTool.<>o__9.<>p__4 == null)
+						{
+							CDBTool.<>o__9.<>p__4 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.ConvertExplicit, typeof(JObject), typeof(CDBTool)));
+						}
+						Func<CallSite, object, JObject> target2 = CDBTool.<>o__9.<>p__4.Target;
+						CallSite <>p__2 = CDBTool.<>o__9.<>p__4;
+						if (CDBTool.<>o__9.<>p__3 == null)
+						{
+							CDBTool.<>o__9.<>p__3 = CallSite<Func<CallSite, object, object>>.Create(Binder.InvokeMember(CSharpBinderFlags.None, "DeepClone", null, typeof(CDBTool), new CSharpArgumentInfo[]
+							{
+								CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, null)
+							}));
+						}
+						jobject3 = target2(<>p__2, CDBTool.<>o__9.<>p__3.Target(CDBTool.<>o__9.<>p__3, arg2));
+					}
+					else
+					{
+						if (CDBTool.<>o__9.<>p__6 == null)
+						{
+							CDBTool.<>o__9.<>p__6 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.ConvertExplicit, typeof(JObject), typeof(CDBTool)));
+						}
+						Func<CallSite, object, JObject> target3 = CDBTool.<>o__9.<>p__6.Target;
+						CallSite <>p__3 = CDBTool.<>o__9.<>p__6;
+						if (CDBTool.<>o__9.<>p__5 == null)
+						{
+							CDBTool.<>o__9.<>p__5 = CallSite<Func<CallSite, object, object>>.Create(Binder.InvokeMember(CSharpBinderFlags.None, "DeepClone", null, typeof(CDBTool), new CSharpArgumentInfo[]
+							{
+								CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, null)
+							}));
+						}
+						JObject jobject6 = target3(<>p__3, CDBTool.<>o__9.<>p__5.Target(CDBTool.<>o__9.<>p__5, arg2));
+						int num3 = -1;
+						string text = jobject6.Value<string>("__separator_group_Name");
+						if (list2.Count > 0 && !string.IsNullOrEmpty(text))
+						{
+							if (list2.Count == 0 || text == "")
+							{
+							}
+							int num4 = 0;
+							while (num4 < list2.Count && list2[num4].name != text)
+							{
+								num4++;
+							}
+							num3 = list2[num4].id;
+						}
+						for (int k = 0; k < list2.Count; k++)
+						{
+							if (list2[k].id > num3)
+							{
+								list2[k].pushLine();
+							}
+							else if (list2[k].id == num3)
+							{
+								string b2 = jobject6.Value<string>("__separator_group_Name");
+								if (list2[k].name != b2)
+								{
+									list2[k].pushLine();
+								}
+							}
+						}
+						int num5 = jobject6.Value<int>("__original_Index");
+						list3.Add(new KeyValuePair<long, int>((long)num5 << 32 | (long)(num3 + 1), list4.Count));
+						list4.Add(jobject6);
+						jobject6.Remove("__separator_group_ID");
+						jobject6.Remove("__separator_group_Name");
+						jobject6.Remove("__original_Index");
+					}
+				}
+				list3.Sort((KeyValuePair<long, int> a, KeyValuePair<long, int> b) => a.Key.CompareTo(b.Key));
+				for (int l = 0; l < list3.Count; l++)
+				{
+					jarray2.Add(list4[list3[l].Value]);
+				}
+				list2.Sort((Separator a, Separator b) => a.lineIndex.CompareTo(b.lineIndex));
+				JArray jarray4 = new JArray();
+				JProperty content4 = new JProperty("separatorTitles", jarray4);
+				jobject3.AddFirst(content4);
+				foreach (Separator separator3 in list2)
+				{
+					if (separator3.lineIndex > -1)
+					{
+						jarray3.Add(separator3.lineIndex);
+						jarray4.Add(separator3.name);
+					}
+				}
+				jobject2.Add(content2);
+				jobject2.Add(content3);
+				jobject2.Add(new JProperty("props", jobject3));
+			}
+			list.Sort((KeyValuePair<int, JObject> a, KeyValuePair<int, JObject> b) => a.Key.CompareTo(b.Key));
+			for (int m = 0; m < list.Count; m++)
+			{
+				jarray.Add(list[m].Value);
+			}
+			jobject.Add("compress", false);
+			jobject.Add("customTypes", new JArray());
+			Directory.CreateDirectory(new FileInfo(_destCDBPath).Directory.FullName);
+			string cdbjobjectAsString = CDBTool.GetCDBJObjectAsString(jobject);
+			this.WriteContentAsync(_destCDBPath, cdbjobjectAsString).Wait();
+		}
 
-    public void Collapse(string _rootInput, string _destCDBPath)
-    {
-      DirectoryInfo directoryInfo = new DirectoryInfo(_rootInput);
-      if (!directoryInfo.Exists)
-        throw new DirectoryNotFoundException("Input directory not found : " + _rootInput);
-      JObject _root = new JObject();
-      JArray jarray = new JArray();
-      _root.Add("sheets", (JToken) jarray);
-      List<KeyValuePair<int, JObject>> keyValuePairList1 = new List<KeyValuePair<int, JObject>>();
-      foreach (DirectoryInfo directory in directoryInfo.GetDirectories())
-      {
-        JObject jobject1 = new JObject();
-        JProperty content1 = new JProperty("name", (object) directory.Name);
-        JArray content2 = new JArray();
-        JObject content3 = (JObject) null;
-        JArray content4 = new JArray();
-        JProperty content5 = new JProperty("lines", (object) content2);
-        JProperty content6 = new JProperty("separators", (object) content4);
-        jobject1.Add((object) content1);
-        List<Separator> separatorList = new List<Separator>();
-        foreach (FileInfo file in directory.GetFiles("*.json", SearchOption.AllDirectories))
-        {
-          if (file.Name != "__STRUCTURE__.json" && file.Name != "__PROPS__.json")
-          {
-            object obj1 = JsonConvert.DeserializeObject(File.ReadAllText(file.FullName));
-            // ISSUE: reference to a compiler-generated field
-            if (CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__1 == null)
-            {
-              // ISSUE: reference to a compiler-generated field
-              CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__1 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.ConvertExplicit, typeof (JObject), typeof (CDBTool.CDBTool)));
-            }
-            // ISSUE: reference to a compiler-generated field
-            Func<CallSite, object, JObject> target = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__1.Target;
-            // ISSUE: reference to a compiler-generated field
-            CallSite<Func<CallSite, object, JObject>> p1 = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__1;
-            // ISSUE: reference to a compiler-generated field
-            if (CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__0 == null)
-            {
-              // ISSUE: reference to a compiler-generated field
-              CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__0 = CallSite<Func<CallSite, object, object>>.Create(Binder.InvokeMember(CSharpBinderFlags.None, "DeepClone", (IEnumerable<Type>) null, typeof (CDBTool.CDBTool), (IEnumerable<CSharpArgumentInfo>) new CSharpArgumentInfo[1]
-              {
-                CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, (string) null)
-              }));
-            }
-            // ISSUE: reference to a compiler-generated field
-            // ISSUE: reference to a compiler-generated field
-            object obj2 = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__0.Target((CallSite) CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__0, obj1);
-            JObject jobject2 = target((CallSite) p1, obj2);
-            int _id = jobject2.Value<int>((object) "__separator_group_ID");
-            string name = jobject2.Value<string>((object) "__separator_group_Name");
-            Separator separator1 = new Separator(_id, name, 0);
-            if (_id != -1 && separatorList.Find((Predicate<Separator>) (s => s.name == name)) == null)
-            {
-              bool flag = false;
-              do
-              {
-                if (separatorList.Count != 0)
-                {
-                  int index = 0;
-                  while (index < separatorList.Count && separatorList[index].id != separator1.id)
-                    ++index;
-                  flag = index < separatorList.Count;
-                  if (flag)
-                  {
-                    foreach (Separator separator2 in separatorList)
-                    {
-                      if (separator2.id > separator1.id)
-                        ++separator2.id;
-                    }
-                    ++separator1.id;
-                  }
-                }
-              }
-              while (flag);
-              separatorList.Add(separator1);
-            }
-          }
-        }
-        List<KeyValuePair<long, int>> keyValuePairList2 = new List<KeyValuePair<long, int>>();
-        List<JObject> jobjectList = new List<JObject>();
-        foreach (FileInfo file in directory.GetFiles("*.json", SearchOption.AllDirectories))
-        {
-          object obj3 = JsonConvert.DeserializeObject(File.ReadAllText(file.FullName));
-          if (file.Name == "__STRUCTURE__.json")
-          {
-            // ISSUE: reference to a compiler-generated field
-            if (CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__2 == null)
-            {
-              // ISSUE: reference to a compiler-generated field
-              CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__2 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.None, typeof (JObject), typeof (CDBTool.CDBTool)));
-            }
-            // ISSUE: reference to a compiler-generated field
-            // ISSUE: reference to a compiler-generated field
-            JObject jobject3 = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__2.Target((CallSite) CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__2, obj3);
-            jobject1.Add((object) new JProperty("columns", (object) jobject3.Value<JArray>((object) "__columns").DeepClone()));
-            keyValuePairList1.Add(new KeyValuePair<int, JObject>(jobject3.Value<int>((object) "__table_index"), jobject1));
-          }
-          else if (file.Name == "__PROPS__.json")
-          {
-            // ISSUE: reference to a compiler-generated field
-            if (CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__4 == null)
-            {
-              // ISSUE: reference to a compiler-generated field
-              CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__4 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.ConvertExplicit, typeof (JObject), typeof (CDBTool.CDBTool)));
-            }
-            // ISSUE: reference to a compiler-generated field
-            Func<CallSite, object, JObject> target = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__4.Target;
-            // ISSUE: reference to a compiler-generated field
-            CallSite<Func<CallSite, object, JObject>> p4 = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__4;
-            // ISSUE: reference to a compiler-generated field
-            if (CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__3 == null)
-            {
-              // ISSUE: reference to a compiler-generated field
-              CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__3 = CallSite<Func<CallSite, object, object>>.Create(Binder.InvokeMember(CSharpBinderFlags.None, "DeepClone", (IEnumerable<Type>) null, typeof (CDBTool.CDBTool), (IEnumerable<CSharpArgumentInfo>) new CSharpArgumentInfo[1]
-              {
-                CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, (string) null)
-              }));
-            }
-            // ISSUE: reference to a compiler-generated field
-            // ISSUE: reference to a compiler-generated field
-            object obj4 = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__3.Target((CallSite) CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__3, obj3);
-            content3 = target((CallSite) p4, obj4);
-          }
-          else
-          {
-            // ISSUE: reference to a compiler-generated field
-            if (CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__6 == null)
-            {
-              // ISSUE: reference to a compiler-generated field
-              CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__6 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.ConvertExplicit, typeof (JObject), typeof (CDBTool.CDBTool)));
-            }
-            // ISSUE: reference to a compiler-generated field
-            Func<CallSite, object, JObject> target = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__6.Target;
-            // ISSUE: reference to a compiler-generated field
-            CallSite<Func<CallSite, object, JObject>> p6 = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__6;
-            // ISSUE: reference to a compiler-generated field
-            if (CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__5 == null)
-            {
-              // ISSUE: reference to a compiler-generated field
-              CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__5 = CallSite<Func<CallSite, object, object>>.Create(Binder.InvokeMember(CSharpBinderFlags.None, "DeepClone", (IEnumerable<Type>) null, typeof (CDBTool.CDBTool), (IEnumerable<CSharpArgumentInfo>) new CSharpArgumentInfo[1]
-              {
-                CSharpArgumentInfo.Create(CSharpArgumentInfoFlags.None, (string) null)
-              }));
-            }
-            // ISSUE: reference to a compiler-generated field
-            // ISSUE: reference to a compiler-generated field
-            object obj5 = CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__5.Target((CallSite) CDBTool.CDBTool.\u003C\u003Eo__9.\u003C\u003Ep__5, obj3);
-            JObject jobject4 = target((CallSite) p6, obj5);
-            int num1 = -1;
-            string str1 = jobject4.Value<string>((object) "__separator_group_Name");
-            if (separatorList.Count > 0 && !string.IsNullOrEmpty(str1))
-            {
-              if (separatorList.Count == 0 || str1 == "")
-                ;
-              int index = 0;
-              while (index < separatorList.Count && separatorList[index].name != str1)
-                ++index;
-              num1 = separatorList[index].id;
-            }
-            for (int index = 0; index < separatorList.Count; ++index)
-            {
-              if (separatorList[index].id > num1)
-                separatorList[index].pushLine();
-              else if (separatorList[index].id == num1)
-              {
-                string str2 = jobject4.Value<string>((object) "__separator_group_Name");
-                if (separatorList[index].name != str2)
-                  separatorList[index].pushLine();
-              }
-            }
-            int num2 = jobject4.Value<int>((object) "__original_Index");
-            keyValuePairList2.Add(new KeyValuePair<long, int>((long) num2 << 32 | (long) (num1 + 1), jobjectList.Count));
-            jobjectList.Add(jobject4);
-            jobject4.Remove("__separator_group_ID");
-            jobject4.Remove("__separator_group_Name");
-            jobject4.Remove("__original_Index");
-          }
-        }
-        keyValuePairList2.Sort((Comparison<KeyValuePair<long, int>>) ((a, b) => a.Key.CompareTo(b.Key)));
-        for (int index = 0; index < keyValuePairList2.Count; ++index)
-          content2.Add((JToken) jobjectList[keyValuePairList2[index].Value]);
-        separatorList.Sort((Comparison<Separator>) ((a, b) => a.lineIndex.CompareTo(b.lineIndex)));
-        JArray content7 = new JArray();
-        JProperty content8 = new JProperty("separatorTitles", (object) content7);
-        content3.AddFirst((object) content8);
-        foreach (Separator separator in separatorList)
-        {
-          if (separator.lineIndex > -1)
-          {
-            content4.Add((JToken) separator.lineIndex);
-            content7.Add((JToken) separator.name);
-          }
-        }
-        jobject1.Add((object) content5);
-        jobject1.Add((object) content6);
-        jobject1.Add((object) new JProperty("props", (object) content3));
-      }
-      keyValuePairList1.Sort((Comparison<KeyValuePair<int, JObject>>) ((a, b) => a.Key.CompareTo(b.Key)));
-      for (int index = 0; index < keyValuePairList1.Count; ++index)
-        jarray.Add((JToken) keyValuePairList1[index].Value);
-      _root.Add("compress", (JToken) false);
-      _root.Add("customTypes", (JToken) new JArray());
-      Directory.CreateDirectory(new FileInfo(_destCDBPath).Directory.FullName);
-      string cdbjObjectAsString = CDBTool.CDBTool.GetCDBJObjectAsString(_root);
-      this.WriteContentAsync(_destCDBPath, cdbjObjectAsString).Wait();
-    }
+		// Token: 0x06000003 RID: 3 RVA: 0x00002E58 File Offset: 0x00001058
+		public static string GetCDBJObjectAsString(JObject _root)
+		{
+			StringWriter stringWriter = new StringWriter();
+			CastleJsonTextWriter castleJsonTextWriter = new CastleJsonTextWriter(stringWriter)
+			{
+				Formatting = Formatting.Indented,
+				Indentation = 1,
+				IndentChar = '\t'
+			};
+			new JsonSerializer().Serialize(castleJsonTextWriter, _root);
+			string result = stringWriter.ToString().Replace("\r", "");
+			castleJsonTextWriter.Close();
+			stringWriter.Close();
+			return result;
+		}
 
-    public static string GetCDBJObjectAsString(JObject _root)
-    {
-      StringWriter _writer = new StringWriter();
-      CastleJsonTextWriter castleJsonTextWriter1 = new CastleJsonTextWriter((TextWriter) _writer);
-      castleJsonTextWriter1.Formatting = Formatting.Indented;
-      castleJsonTextWriter1.Indentation = 1;
-      castleJsonTextWriter1.IndentChar = '\t';
-      CastleJsonTextWriter castleJsonTextWriter2 = castleJsonTextWriter1;
-      new JsonSerializer().Serialize((JsonWriter) castleJsonTextWriter2, (object) _root);
-      string cdbjObjectAsString = _writer.ToString().Replace("\r", "");
-      castleJsonTextWriter2.Close();
-      _writer.Close();
-      return cdbjObjectAsString;
-    }
+		// Token: 0x06000004 RID: 4 RVA: 0x00002EB8 File Offset: 0x000010B8
+		public void BuildDiffCDB(string _referenceCDBPath, string _inputDirPath, string _outputDirPath)
+		{
+			DirectoryInfo directoryInfo = new DirectoryInfo(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
+			string fullName = directoryInfo.FullName;
+			this.Expand(_referenceCDBPath, fullName);
+			Dictionary<string, CDBTool.Test> dictionary = this.BuildCRCFileMap(directoryInfo);
+			DirectoryInfo rootDir = new DirectoryInfo(_inputDirPath);
+			Dictionary<string, CDBTool.Test> dictionary2 = this.BuildCRCFileMap(rootDir);
+			List<string> list = new List<string>();
+			foreach (KeyValuePair<string, CDBTool.Test> keyValuePair in dictionary2)
+			{
+				CDBTool.Test test;
+				if (dictionary.TryGetValue(keyValuePair.Key, out test))
+				{
+					if (test.i != keyValuePair.Value.i)
+					{
+						list.Add(keyValuePair.Value.originalFileName);
+					}
+				}
+				else
+				{
+					list.Add(keyValuePair.Value.originalFileName);
+				}
+			}
+			if (list.Count > 0)
+			{
+				new DirectoryInfo(_outputDirPath).Create();
+				foreach (string text in list)
+				{
+					FileInfo fileInfo = new FileInfo(Path.Combine(_outputDirPath, this.GetOriginalName(text)));
+					Directory.CreateDirectory(fileInfo.Directory.FullName);
+					File.Copy(Path.Combine(_inputDirPath, text), fileInfo.FullName, true);
+				}
+			}
+			directoryInfo.Delete(true);
+		}
 
-    public void BuildDiffCDB(string _referenceCDBPath, string _inputDirPath, string _outputDirPath)
-    {
-      DirectoryInfo _rootDir = new DirectoryInfo(Path.Combine(Path.GetTempPath(), Path.GetRandomFileName()));
-      string fullName = _rootDir.FullName;
-      this.Expand(_referenceCDBPath, fullName);
-      Dictionary<string, CDBTool.CDBTool.Test> dictionary1 = this.BuildCRCFileMap(_rootDir);
-      Dictionary<string, CDBTool.CDBTool.Test> dictionary2 = this.BuildCRCFileMap(new DirectoryInfo(_inputDirPath));
-      List<string> stringList = new List<string>();
-      foreach (KeyValuePair<string, CDBTool.CDBTool.Test> keyValuePair in dictionary2)
-      {
-        CDBTool.CDBTool.Test test;
-        if (dictionary1.TryGetValue(keyValuePair.Key, out test))
-        {
-          if (test.i != keyValuePair.Value.i)
-            stringList.Add(keyValuePair.Value.originalFileName);
-        }
-        else
-          stringList.Add(keyValuePair.Value.originalFileName);
-      }
-      if (stringList.Count > 0)
-      {
-        new DirectoryInfo(_outputDirPath).Create();
-        foreach (string str in stringList)
-        {
-          FileInfo fileInfo = new FileInfo(Path.Combine(_outputDirPath, this.GetOriginalName(str)));
-          Directory.CreateDirectory(fileInfo.Directory.FullName);
-          File.Copy(Path.Combine(_inputDirPath, str), fileInfo.FullName, true);
-        }
-      }
-      _rootDir.Delete(true);
-    }
+		// Token: 0x06000005 RID: 5 RVA: 0x00003020 File Offset: 0x00001220
+		private Dictionary<string, CDBTool.Test> BuildCRCFileMap(DirectoryInfo _rootDir)
+		{
+			int length = _rootDir.FullName.Length;
+			Dictionary<string, CDBTool.Test> dictionary = new Dictionary<string, CDBTool.Test>();
+			List<DirectoryInfo> list = new List<DirectoryInfo>();
+			list.Add(_rootDir);
+			Adler32 adler = new Adler32();
+			for (int i = 0; i < list.Count; i++)
+			{
+				foreach (DirectoryInfo item in list[i].GetDirectories())
+				{
+					list.Add(item);
+				}
+				foreach (FileInfo fileInfo in list[i].GetFiles())
+				{
+					string originalName = this.GetOriginalName(fileInfo.FullName.Substring(length + 1));
+					try
+					{
+						JObject jobject = (JObject)JsonConvert.DeserializeObject(File.ReadAllText(fileInfo.FullName));
+						int i2;
+						if (jobject.Remove("__original_Index"))
+						{
+							i2 = adler.Make(new MemoryStream(Encoding.UTF8.GetBytes(jobject.ToString())));
+						}
+						else
+						{
+							i2 = adler.Make(File.OpenRead(fileInfo.FullName));
+						}
+						dictionary.Add(originalName, new CDBTool.Test(i2, jobject, fileInfo.FullName.Substring(length + 1)));
+					}
+					catch (Exception ex)
+					{
+						Log.Error("Failing to build CRC for file : " + originalName + " from " + fileInfo.FullName, "");
+						throw ex;
+					}
+				}
+			}
+			return dictionary;
+		}
 
-    private Dictionary<string, CDBTool.CDBTool.Test> BuildCRCFileMap(DirectoryInfo _rootDir)
-    {
-      int length = _rootDir.FullName.Length;
-      Dictionary<string, CDBTool.CDBTool.Test> dictionary = new Dictionary<string, CDBTool.CDBTool.Test>();
-      List<DirectoryInfo> directoryInfoList = new List<DirectoryInfo>();
-      directoryInfoList.Add(_rootDir);
-      Adler32 adler32 = new Adler32();
-      for (int index = 0; index < directoryInfoList.Count; ++index)
-      {
-        foreach (DirectoryInfo directory in directoryInfoList[index].GetDirectories())
-          directoryInfoList.Add(directory);
-        foreach (FileInfo file in directoryInfoList[index].GetFiles())
-        {
-          string originalName = this.GetOriginalName(file.FullName.Substring(length + 1));
-          try
-          {
-            JObject jobject = (JObject) JsonConvert.DeserializeObject(File.ReadAllText(file.FullName));
-            int _i = !jobject.Remove("__original_Index") ? adler32.Make((Stream) File.OpenRead(file.FullName)) : adler32.Make((Stream) new MemoryStream(Encoding.UTF8.GetBytes(jobject.ToString())));
-            dictionary.Add(originalName, new CDBTool.CDBTool.Test(_i, jobject, file.FullName.Substring(length + 1)));
-          }
-          catch (Exception ex)
-          {
-            Log.Error("Failing to build CRC for file : " + originalName + " from " + file.FullName);
-            throw ex;
-          }
-        }
-      }
-      return dictionary;
-    }
+		// Token: 0x06000006 RID: 6 RVA: 0x00003198 File Offset: 0x00001398
+		private string GetOriginalName(string _indexedAndCategorizedName)
+		{
+			string[] array = _indexedAndCategorizedName.Split(new char[]
+			{
+				'\\'
+			});
+			if (array.Length == 0)
+			{
+				array = _indexedAndCategorizedName.Split(new char[]
+				{
+					'/'
+				});
+			}
+			List<string> list = new List<string>(array);
+			while (list.Count > 2)
+			{
+				list.RemoveAt(1);
+			}
+			string text = list[list.Count - 1];
+			int num = text.IndexOf("---");
+			if (num != -1)
+			{
+				list[list.Count - 1] = text.Substring(num + 3);
+			}
+			return Path.Combine(list.ToArray());
+		}
 
-    private string GetOriginalName(string _indexedAndCategorizedName)
-    {
-      string str1 = _indexedAndCategorizedName;
-      string[] collection = _indexedAndCategorizedName.Split('\\');
-      if (collection.Length == 0)
-        collection = str1.Split('/');
-      List<string> stringList = new List<string>((IEnumerable<string>) collection);
-      while (stringList.Count > 2)
-        stringList.RemoveAt(1);
-      string str2 = stringList[stringList.Count - 1];
-      int num = str2.IndexOf("---");
-      if (num != -1)
-        stringList[stringList.Count - 1] = str2.Substring(num + 3);
-      return Path.Combine(stringList.ToArray());
-    }
+		// Token: 0x06000007 RID: 7 RVA: 0x0000322C File Offset: 0x0000142C
+		private static void WriteContentSync(string _fileName, string _content)
+		{
+			StreamWriter streamWriter = new FileInfo(_fileName).CreateText();
+			streamWriter.Write(_content);
+			streamWriter.Close();
+		}
 
-    private static void WriteContentSync(string _fileName, string _content)
-    {
-      StreamWriter text = new FileInfo(_fileName).CreateText();
-      text.Write(_content);
-      text.Close();
-    }
+		// Token: 0x06000008 RID: 8 RVA: 0x00003248 File Offset: 0x00001448
+		private async Task WriteContentAsync(string _fileName, string _content)
+		{
+			FileInfo fileInfo = new FileInfo(_fileName);
+			StreamWriter writer = fileInfo.CreateText();
+			await writer.WriteAsync(_content);
+			writer.Close();
+		}
 
-    private async Task WriteContentAsync(string _fileName, string _content)
-    {
-      StreamWriter writer = new FileInfo(_fileName).CreateText();
-      await writer.WriteAsync(_content);
-      writer.Close();
-    }
+		// Token: 0x04000001 RID: 1
+		public const string structureFileName = "__STRUCTURE__.json";
 
-    private class Test
-    {
-      public int i;
-      public JObject obj;
-      public string originalFileName;
+		// Token: 0x04000002 RID: 2
+		public const string propertyFileName = "__PROPS__.json";
 
-      public Test(int _i, JObject _obj, string _originalFileName)
-      {
-        this.i = _i;
-        this.obj = _obj;
-        this.originalFileName = _originalFileName;
-      }
-    }
-  }
+		// Token: 0x04000003 RID: 3
+		public const string columnsNodeName = "__columns";
+
+		// Token: 0x04000004 RID: 4
+		public const string tableIndexName = "__table_index";
+
+		// Token: 0x04000005 RID: 5
+		public const string separatorGroupIDName = "__separator_group_ID";
+
+		// Token: 0x04000006 RID: 6
+		public const string separatorGroupNameName = "__separator_group_Name";
+
+		// Token: 0x04000007 RID: 7
+		public const string originalIndexName = "__original_Index";
+
+		// Token: 0x04000008 RID: 8
+		public bool bMultiThread = true;
+
+		// Token: 0x02000005 RID: 5
+		private class Test
+		{
+			// Token: 0x06000014 RID: 20 RVA: 0x00003539 File Offset: 0x00001739
+			public Test(int _i, JObject _obj, string _originalFileName)
+			{
+				this.i = _i;
+				this.obj = _obj;
+				this.originalFileName = _originalFileName;
+			}
+
+			// Token: 0x0400000C RID: 12
+			public int i;
+
+			// Token: 0x0400000D RID: 13
+			public JObject obj;
+
+			// Token: 0x0400000E RID: 14
+			public string originalFileName;
+		}
+	}
 }
