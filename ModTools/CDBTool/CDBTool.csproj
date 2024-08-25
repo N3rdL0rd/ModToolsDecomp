@@ -2,6 +2,10 @@
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!--Project was exported from assembly: D:\SteamLibrary\steamapps\common\Dead Cells\ModTools\CDBTool.exe-->
   <PropertyGroup>
+    <LangVersion>8.0</LangVersion>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{104706A8-95E4-4A66-8DFB-71340C0686F1}</ProjectGuid>
@@ -45,13 +49,13 @@
     <Compile Include="AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Common\Common.csproj">
       <Project>{b279afc1-44c6-4b4b-9268-21a6c973f563}</Project>
       <Name>Common</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -3,6 +3,7 @@
   <!--Project was exported from assembly: D:\SteamLibrary\steamapps\common\Dead Cells\ModTools\ScriptTool.exe-->
   <PropertyGroup>
     <LangVersion>8.0</LangVersion>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>

@@ -69,7 +69,7 @@ namespace AtlasTool
       }
       try
       {
-        AtlasTool.AtlasTool atlasTool1 = new AtlasTool.AtlasTool();
+        AtlasTool atlasTool1 = new AtlasTool();
         Console.WriteLine("Launching AtlasTool v" + Versionning.currentVersion + ", action: " + str1);
         switch (str1)
         {
@@ -87,7 +87,7 @@ namespace AtlasTool
               FileInfo atlas = file;
               Task task = Task.Factory.StartNew((Action) (() =>
               {
-                AtlasTool.AtlasTool atlasTool2 = new AtlasTool.AtlasTool();
+                AtlasTool atlasTool2 = new AtlasTool();
                 string path2 = atlas.Name.Substring(0, atlas.Name.Length - 6);
                 string fullName = atlas.FullName;
                 string _outDirPath = Path.Combine(outDir, path2);
@@ -105,7 +105,7 @@ namespace AtlasTool
               DirectoryInfo dir = directory;
               Task task = Task.Factory.StartNew((Action) (() =>
               {
-                AtlasTool.AtlasTool atlasTool3 = new AtlasTool.AtlasTool();
+                AtlasTool atlasTool3 = new AtlasTool();
                 string name = dir.Name;
                 string _inputDirPath = Path.Combine(inDir, name);
                 string _atlasPath2 = Path.Combine(outDir, name) + ".png";
