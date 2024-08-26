@@ -63,7 +63,7 @@ namespace CDBTool
       }
       try
       {
-        CDBTool.CDBTool cdbTool = new CDBTool.CDBTool();
+        CDBTool cdbTool = new CDBTool();
         Console.WriteLine("Launching CDBTool v" + Versionning.currentVersion + ", action: " + str4);
         switch (str4)
         {

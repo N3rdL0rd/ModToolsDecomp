@@ -204,9 +204,9 @@ namespace CDBTool
 					if (fileInfo.Name != "__STRUCTURE__.json" && fileInfo.Name != "__PROPS__.json")
 					{
 						object arg = JsonConvert.DeserializeObject(File.ReadAllText(fileInfo.FullName));
-						if (CDBTool.<>o__9.<>p__1 == null)
+						if (CDBTool.o__9.p__1 == null)
 						{
-							CDBTool.<>o__9.<>p__1 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.ConvertExplicit, typeof(JObject), typeof(CDBTool)));
+							CDBTool.o__9.p__1 = CallSite<Func<CallSite, object, JObject>>.Create(Binder.Convert(CSharpBinderFlags.ConvertExplicit, typeof(JObject), typeof(CDBTool)));
 						}
 						Func<CallSite, object, JObject> target = CDBTool.<>o__9.<>p__1.Target;
 						CallSite <>p__ = CDBTool.<>o__9.<>p__1;
