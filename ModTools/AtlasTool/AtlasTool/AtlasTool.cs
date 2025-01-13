@@ -158,7 +158,11 @@ namespace AtlasTool
             BinaryWriter _writer = (BinaryWriter)null;
             StreamWriter streamWriter = (StreamWriter)null;
             if (_exportBinaryAtlases)
+            {
                 _writer = new BinaryWriter((Stream)File.OpenWrite(_atlasPath.Substring(0, _atlasPath.Length - 4) + ".atlas"));
+                string text3 = "BATL";
+                _writer.Write(text3.ToCharArray());
+            }
             else
                 streamWriter = new StreamWriter(_atlasPath.Substring(0, _atlasPath.Length - 4) + ".atlas");
             for (int index = 0; index < count; ++index)
@@ -197,8 +201,10 @@ namespace AtlasTool
                 }
                 if (_exportBinaryAtlases)
                 {
+                    /*
                     string str = "BATL";
                     _writer.Write(str.ToCharArray());
+                    */
                     this.WriteString(_writer, filename.Substring(filename.LastIndexOf('\\') + 1));
                     foreach (Tile tile in tileList)
                     {
@@ -206,17 +212,21 @@ namespace AtlasTool
                         {
                             tile.x = tile.duplicateOf.x;
                             tile.y = tile.duplicateOf.y;
+                            tile.atlasIndex = tile.duplicateOf.atlasIndex;
                         }
-                        this.WriteString(_writer, tile.name);
-                        _writer.Write((ushort)tile.index);
-                        _writer.Write((int)(ushort)tile.x + 1);
-                        _writer.Write((int)(ushort)tile.y + 1);
-                        _writer.Write((ushort)tile.width);
-                        _writer.Write((ushort)tile.height);
-                        _writer.Write((ushort)tile.offsetX);
-                        _writer.Write((ushort)tile.offsetY);
-                        _writer.Write((ushort)tile.originalWidth);
-                        _writer.Write((ushort)tile.originalHeight);
+                        if (tile.atlasIndex == index)
+					    {
+                            this.WriteString(_writer, tile.name);
+                            _writer.Write((ushort)tile.index);
+                            _writer.Write((ushort)(tile.x + 1));
+                            _writer.Write((ushort)(tile.y + 1));
+                            _writer.Write((ushort)tile.width);
+                            _writer.Write((ushort)tile.height);
+                            _writer.Write((ushort)tile.offsetX);
+                            _writer.Write((ushort)tile.offsetY);
+                            _writer.Write((ushort)tile.originalWidth);
+                            _writer.Write((ushort)tile.originalHeight);
+                        }
                     }
                     _writer.Write((byte)0);
                 }
@@ -363,7 +373,7 @@ namespace AtlasTool
                     str = "reading old";
                     BitmapData bitmapdata1 = _tile.bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
                     str = "reading new";
-                    BitmapData bitmapdata2 = bitmap.LockBits(new Rectangle(1, 1, width, height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                    BitmapData bitmapdata2 = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
                     for (int index = 0; index < height; ++index)
                         Core.CopyMemory(bitmapdata2.Scan0 + index * bitmapdata2.Stride, bitmapdata1.Scan0 + index * bitmapdata1.Stride, (uint)(width * 4));
                     _tile.bitmap.UnlockBits(bitmapdata1);
@@ -385,6 +395,7 @@ namespace AtlasTool
                     _tile.width += 2;
                     _tile.height += 2;
                 }
+                /*
                 str = "writing";
                 string.Format("_tile.offsetX = {0}, _tile.offsetY = {1}, _tile.width = {2}, _tile.height = {3}", (object)_tile.offsetX, (object)_tile.offsetY, (object)_tile.width, (object)_tile.height);
                 BitmapData bitmapdata = _tile.bitmap.LockBits(new Rectangle(_tile.offsetX, _tile.offsetY, _tile.width, _tile.height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
@@ -401,6 +412,7 @@ namespace AtlasTool
                     Marshal.WriteInt32(bitmapdata.Scan0 + num + index * 4, val);
                 }
                 _tile.bitmap.UnlockBits(bitmapdata);
+                */
             }
             catch (Exception ex)
             {
